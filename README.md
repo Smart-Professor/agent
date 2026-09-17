@@ -369,3 +369,9 @@ uvicorn main:app --reload # 启动后浏览器打开 http://localhost:8000
 - [PROJECT-OVERVIEW.md](./PROJECT-OVERVIEW.md) —— 项目是什么、由什么组成、当前完成度
 - [deployment-guide.md](./deployment-guide.md) —— 完整部署指南与故障排查手册
 - [R2-INTEGRATION.md](./R2-INTEGRATION.md) —— R2 对象存储全栈对接方案（可整体迁移到其他项目）
+
+## 开源协议
+
+本项目基于 [MIT License](./LICENSE) 开源。
+
+你可以自由地使用、学习、修改和分发本项目，包括商业用途；唯一的要求是保留原始的版权声明与许可文本。软件按"现状"提供，不附带任何担保。
