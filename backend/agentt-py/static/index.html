@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>AI 创作多智能体 · Supervisor</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: "Microsoft YaHei", sans-serif; background: #0f1117; color: #e6e6e6; }
+  header { padding: 12px 20px; background: #161923; border-bottom: 1px solid #232838; display: flex; gap: 16px; align-items: center; flex-wrap: wrap; }
+  header h1 { font-size: 16px; margin: 0; }
+  header input { background: #1d2233; border: 1px solid #2b3350; color: #ccc; border-radius: 6px; padding: 4px 8px; width: 140px; }
+  header .hint { color: #667; font-size: 12px; }
+  #log { padding: 16px 20px 120px; max-width: 900px; margin: 0 auto; }
+  .line { margin: 6px 0; font-size: 13px; color: #8892b0; }
+  .bubble { border-left: 3px solid #555; background: #161923; border-radius: 8px; padding: 10px 14px; margin: 10px 0; white-space: pre-wrap; font-size: 14px; line-height: 1.7; }
+  .bubble .tag { display: inline-block; font-size: 12px; font-weight: bold; margin-bottom: 4px; }
+  .bubble img { max-width: 240px; border-radius: 6px; margin: 8px 8px 0 0; display: block; }
+  .supervisor { border-color: #eab308; } .supervisor .tag { color: #eab308; }
+  .story { border-color: #60a5fa; } .story .tag { color: #60a5fa; }
+  .character { border-color: #f472b6; } .character .tag { color: #f472b6; }
+  .scene { border-color: #34d399; } .scene .tag { color: #34d399; }
+  .storyboard { border-color: #a78bfa; } .storyboard .tag { color: #a78bfa; }
+  .interaction { border-color: #fb923c; } .interaction .tag { color: #fb923c; }
+  .error { color: #f87171; }
+  details { background: #161923; border: 1px solid #232838; border-radius: 8px; margin: 8px 0; padding: 8px 14px; }
+  summary { cursor: pointer; font-size: 13px; color: #8892b0; }
+  details pre { white-space: pre-wrap; font-size: 13px; line-height: 1.7; color: #ccc; }
+  footer { position: fixed; bottom: 0; left: 0; right: 0; background: #161923; border-top: 1px solid #232838; padding: 12px 20px; display: flex; gap: 10px; }
+  footer input { flex: 1; background: #1d2233; border: 1px solid #2b3350; color: #eee; border-radius: 8px; padding: 10px 14px; font-size: 14px; outline: none; }
+  footer button { background: #4f6ef7; border: none; color: white; border-radius: 8px; padding: 10px 22px; cursor: pointer; }
+  footer button:disabled { opacity: .5; }
+</style>
+</head>
+<body>
+<header>
+  <h1>🎭 AI 创作多智能体</h1>
+  <span class="hint">thread_id</span><input id="threadId" value="default">
+  <span class="hint" id="modelHint"></span>
+</header>
+<div id="log"></div>
+<footer>
+  <input id="msg" placeholder="例如：以星际港口为背景，写个故事并设计主角和场景，再出分镜" />
+  <button id="send">发送</button>
+</footer>
+<script>
+const NAMES = { supervisor: "🎯 主管", story: "📖 故事", character: "👤 角色", scene: "🏞️ 场景", storyboard: "🎬 分镜", interaction: "🎮 互动" };
+const log = document.getElementById("log"), msg = document.getElementById("msg"), send = document.getElementById("send");
+let cur = null; // 当前正在流式输出的气泡 {node, el}
+msg.focus();
+
+fetch("/health").then(r => r.json()).then(h => document.getElementById("modelHint").textContent = `${h.model} / 图像: ${h.image_model}`).catch(() => {});
+
+function line(text, cls = "line") {
+  const div = document.createElement("div");
+  div.className = cls; div.textContent = text;
+  log.appendChild(div); div.scrollIntoView({ block: "end" });
+  return div;
+}
+function bubble(node) {
+  const div = document.createElement("div");
+  div.className = "bubble " + node;
+  const tag = document.createElement("span");
+  tag.className = "tag"; tag.textContent = NAMES[node] || node;
+  div.appendChild(tag);
+  log.appendChild(div); div.scrollIntoView({ block: "end" });
+  return div;
+}
+function streamText(el, text) { el.appendChild(document.createTextNode(text)); el.scrollIntoView({ block: "end" }); }
+
+function handle(ev, data) {
+  if (ev === "start") { cur = null; line("── 新请求 ──"); }
+  else if (ev === "route") {
+    cur = null;
+    if (data.next === "FINISH") line(`🎯 主管 → ✅ 校验通过，结束（${data.reason || ""}）`);
+    else line(`🎯 主管调度 → ${NAMES[data.next] || data.next}：${data.instruction || ""}`);
+  } else if (ev === "token") {
+    if (!cur || cur.node !== data.node) cur = { node: data.node, el: bubble(data.node) };
+    streamText(cur.el, data.text);
+  } else if (ev === "node_done") {
+    cur = null;
+    (data.images || []).forEach(img => {
+      const b = bubble(data.node);
+      if (img.url) { const el = document.createElement("img"); el.src = img.url; b.appendChild(el); }
+      else b.appendChild(document.createTextNode(`🖼️ 生图失败：${img.error || "未知错误"}`));
+    });
+  } else if (ev === "final") {
+    for (const [key, text] of Object.entries(data.artifacts || {})) {
+      const det = document.createElement("details");
+      det.innerHTML = `<summary>📦 ${key}</summary>`;
+      const pre = document.createElement("pre"); pre.textContent = text;
+      det.appendChild(pre); log.appendChild(det);
+    }
+    (data.images || []).forEach(img => line(`🖼️ [${NAMES[img.agent] || img.agent}] ${img.prompt.slice(0, 60)}… → ${img.url || "失败"}`));
+  } else if (ev === "error") { cur = null; line("❌ " + data.message, "error"); }
+  else if (ev === "end") { cur = null; line("── 完成 ──"); }
+}
+
+async function sendMsg() {
+  const text = msg.value.trim();
+  if (!text || send.disabled) return;
+  send.disabled = true; msg.value = "";
+  try {
+    const resp = await fetch("/chat/stream", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ message: text, thread_id: document.getElementById("threadId").value || "default" }),
+    });
+    const reader = resp.body.getReader(), dec = new TextDecoder();
+    let buf = "";
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buf += dec.decode(value, { stream: true });
+      let idx;
+      while ((idx = buf.indexOf("\n\n")) >= 0) {
+        const frame = buf.slice(0, idx); buf = buf.slice(idx + 2);
+        let ev = "message", data = {};
+        for (const l of frame.split("\n")) {
+          if (l.startsWith("event:")) ev = l.slice(6).trim();
+          else if (l.startsWith("data:")) { try { data = JSON.parse(l.slice(5).trim()); } catch {} }
+        }
+        handle(ev, data);
+      }
+    }
+  } catch (e) { line("❌ 请求失败：" + e, "error"); }
+  send.disabled = false; msg.focus();
+}
+send.onclick = sendMsg;
+msg.addEventListener("keydown", e => { if (e.key === "Enter") sendMsg(); });
+</script>
+</body>
+</html>

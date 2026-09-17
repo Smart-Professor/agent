@@ -1,0 +1,31 @@
+{
+  "name": "mail-service",
+  "version": "0.0.1",
+  "description": "独立邮件 Worker：消费 Bull(mail) 队列，通过 163 SMTP 发信",
+  "private": true,
+  "license": "UNLICENSED",
+  "scripts": {
+    "build": "nest build",
+    "start": "nest start",
+    "start:dev": "nest start --watch",
+    "start:prod": "node dist/main"
+  },
+  "dependencies": {
+    "@nestjs/bull": "^12.0.0",
+    "@nestjs/common": "^12.0.1",
+    "@nestjs/config": "^12.0.0",
+    "@nestjs/core": "^12.0.1",
+    "bull": "^4.16.5",
+    "nodemailer": "^10.0.9",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.1"
+  },
+  "devDependencies": {
+    "@nestjs/cli": "^12.0.0",
+    "@nestjs/schematics": "^12.0.0",
+    "@types/node": "^24.0.0",
+    "@types/nodemailer": "^8.0.1",
+    "source-map-support": "^0.5.21",
+    "typescript": "^6.0.2"
+  }
+}

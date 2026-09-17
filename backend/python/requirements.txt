@@ -1,0 +1,12 @@
+# 说明：Python 3.13 下使用下限版本约束。
+# 部署文档中的精确版本（langchain==0.3.0 等）会解析到没有 cp313 轮子的
+# numpy 1.26.4 并触发源码编译；放宽下限后 pip 会自动选取带 cp313 轮子的新版本。
+fastapi>=0.115.0
+uvicorn[standard]>=0.30.6
+langchain>=0.3.0
+langchain-openai>=0.2.0
+openai>=1.51.0
+pydantic>=2.9.2
+pydantic-settings>=2.5.2
+httpx>=0.27.2
+python-dotenv>=1.0.1
