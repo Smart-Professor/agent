@@ -70,6 +70,7 @@ SSE 事件流：
 ├── main.py            # FastAPI 入口：SSE 接口 + 静态页
 ├── static/index.html  # 极简查看页
 ├── smoke_test.py      # 无 key 冒烟测试（假 LLM 验证图结构）：python smoke_test.py
+├── ARCHITECTURE.md    # 目标分层与迁移约定
 └── app/
     ├── config.py      # 读 .env
     ├── llm.py         # GLM 客户端（ChatOpenAI + 智谱 OpenAI 兼容地址）
@@ -78,11 +79,24 @@ SSE 事件流：
     ├── tools.py       # 文生图（CogView）
     ├── supervisor.py  # 主管节点 + 路由
     ├── workers.py     # 5 个创作 Agent 节点
-    └── graph.py       # LangGraph 组装
+    ├── graph.py       # LangGraph 组装
+    ├── agent/          # 目标分层骨架（迁移中）
+    │   ├── role/       #   角色、提示词、推理、知识（占位）
+    │   ├── planning/   #   任务规划：已实现 SimplePlanner
+    │   ├── memory/     #   短期/长期记忆、用户画像（占位）
+    │   └── tools/      #   工具定义/注册/外部适配（占位）
+    ├── api/            #   路由与鉴权（占位）
+    ├── orchestration/  #   Supervisor/Worker 编排（占位）
+    ├── models/         #   模型 Provider 适配（占位）
+    ├── schemas/        #   数据契约（占位）
+    └── infrastructure/ #   Redis/数据库/对象存储（占位）
 ```
+
+> 运行时仍走 `main.py` + `app/*.py` 的扁平结构；`agent/`、`api/`、`orchestration/` 等分层目录是按 `ARCHITECTURE.md` 预建的骨架，目前只有 `app/agent/planning/` 有实现，其余仅 `__init__.py` / `.gitkeep` 占位。
 
 ## 说明与扩展
 
+- **任务规划**：`app/agent/planning/` 提供不依赖 LLM 的 `SimplePlanner`（`Plan` / `PlanStep`），演示 `python -m app.agent.planning.demo`；后续接模型只替换计划生成逻辑。
 - **换生图后端**：改 `app/tools.py` 的 `generate_image()` 即可（签名 `(prompt) -> url` 不变），SDXL / 3DGS 接进同一个函数。
 - **防死循环**：主管单次请求最多调度 12 轮（`app/supervisor.py: MAX_STEPS`）。
 - **模型名**：`.env` 里 `GLM_MODEL` / `GLM_IMAGE_MODEL` 可改；模型名不对会报 404/400，按智谱控制台的模型列表填。
