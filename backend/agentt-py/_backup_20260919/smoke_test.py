@@ -43,9 +43,9 @@ def run():
         '{"next": "FINISH", "instruction": "", "reason": "校验一致，完成"}',
     ])
 
-    with patch("app.planning.supervisor.get_llm", return_value=fake), \
-         patch("app.action.workers.get_llm", return_value=fake), \
-         patch("app.action.workers.generate_image", lambda prompt: "https://example.com/fake.png"):
+    with patch("app.supervisor.get_llm", return_value=fake), \
+         patch("app.workers.get_llm", return_value=fake), \
+         patch("app.workers.generate_image", lambda prompt: "https://example.com/fake.png"):
         from app.graph import build_graph
         graph = build_graph()
 

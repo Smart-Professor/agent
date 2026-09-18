@@ -16,7 +16,7 @@ from pydantic import BaseModel
 
 from app import config as settings
 from app.graph import build_graph
-from app.planning.supervisor import WORKERS
+from app.supervisor import WORKERS
 
 app = FastAPI(title="AI 创作多智能体（Supervisor 主管模式）")
 app.add_middleware(
