@@ -6,6 +6,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 基于 GLM-5.3 Flash（智谱开放平台）的多 Agent 创作系统，采用 LangGraph Supervisor 主管模式：1 个主管（supervisor）调度 5 个创作 Agent（story / character / scene / storyboard / interaction），通过 FastAPI 提供 SSE 流式对话接口。所有代码注释与提示词均为中文，新增代码请保持中文注释风格。
 
+实际运行的代码目前仍是扁平结构（`main.py` + `app/*.py`）；同时已按目标分层预建了包骨架（`app/api`、`app/models`、`app/orchestration`、`app/schemas`、`app/infrastructure`、`app/agent/{role,planning,memory,tools}`），迁移约定见 `ARCHITECTURE.md`。骨架里目前只有 `app/agent/planning` 有实现（不依赖 LLM 的 `SimplePlanner`）。
+
 ## 常用命令
 
 ```bash
@@ -20,6 +22,9 @@ uvicorn main:app --reload
 
 # 冒烟测试（无需 API Key，用脚本化假 LLM 验证图结构与路由逻辑）
 python smoke_test.py
+
+# 规划模块演示（无需 API Key，打印 SimplePlanner 生成的计划）
+python -m app.agent.planning.demo
 
 # 手动测 SSE 接口（-N 关闭 curl 缓冲，实时看流）
 curl -N -X POST http://localhost:8000/chat/stream \
@@ -56,6 +61,31 @@ supervisor 输出 next_agent=FINISH → END
 
 `POST /chat/stream` 用 `graph.astream(stream_mode=["updates", "messages"])` 双模式流：`updates` 产出 `route`/`node_done` 事件，`messages` 产出 worker 的逐 token `token` 事件（主管走结构化输出，不流式）。事件顺序：`start → route → token* → node_done → ... → final → end`。前端 `static/index.html` 手写 SSE 解析。
 
+### 分层骨架与规划模块（迁移中）
+
+`ARCHITECTURE.md` 定义了目标分层，对应的包已建好但多数只有 `__init__.py` 与 `.gitkeep` 占位，**尚未被 `main.py` 引用**：
+
+```
+app/
+├── api/              # FastAPI 路由、SSE、鉴权（占位）
+├── agent/
+│   ├── role/         # 角色、提示词、推理、知识（占位）
+│   ├── planning/     # 任务规划：已实现 SimplePlanner
+│   ├── memory/       # 短期/长期记忆、用户画像（占位，含 short_term/ long_term/ profiles/ 子目录）
+│   └── tools/        # 工具定义/注册/外部适配（占位，含 builtin/ external/ registry/ 子目录）
+├── orchestration/    # LangGraph、Supervisor、Worker 编排（占位）
+├── models/           # 文本/图像模型 Provider 适配（占位）
+├── infrastructure/   # Redis、数据库、对象存储、配置（占位）
+└── schemas/          # API/计划/记忆/工具调用数据契约（占位）
+```
+
+`app/agent/planning/` 是唯一有实现的骨架模块：
+
+- `planner.py`：`PlanStep` / `Plan`（frozen dataclass）+ `SimplePlanner.plan(goal) -> Plan`，纯规则生成"理解需求 → 拆解任务 → 执行与记录 → 验收与交付"四步计划，不调用 LLM；`goal` 为空时抛 `ValueError`。后续接模型只替换 `SimplePlanner.plan` 的生成逻辑，数据结构保持不变。
+- `demo.py`：`python -m app.agent.planning.demo` 打印示例计划。
+
+新增 Agent 能力按 `ARCHITECTURE.md` 的约定放进 `app/agent/` 下；不要改动现有 `main.py` / `graph.py` / `supervisor.py` / `workers.py` 的接口与行为。
+
 ## 各文件说明
 
 | 文件 | 作用 |
@@ -71,6 +101,9 @@ supervisor 输出 next_agent=FINISH → END
 | `app/graph.py` | LangGraph 组装：注册 supervisor + workers 节点，START→supervisor，supervisor 条件边分发，worker 无条件回 supervisor，`InMemorySaver` checkpointer。 |
 | `smoke_test.py` | 无 key 冒烟测试：`ScriptedLLM`（继承 BaseChatModel，按脚本顺序返回预设文本）patch 掉真实 LLM 和生图，断言路由链、产物合并、IMAGE_PROMPT/WORLD_STATE 截取、消息历史。 |
 | `static/index.html` | 极简前端查看页：手写 SSE 解析，按 agent 着色显示流式气泡、生图结果、final 产物折叠面板。无构建步骤，纯静态。 |
+| `app/agent/planning/planner.py` | 分层骨架中唯一有实现的模块：`Plan` / `PlanStep` + `SimplePlanner`，规则型四步计划生成，不依赖 LLM。 |
+| `app/agent/planning/demo.py` | 规划模块演示入口：`python -m app.agent.planning.demo`。 |
+| `app/{api,models,orchestration,schemas,infrastructure}/`、`app/agent/{role,memory,tools}/` | 按 `ARCHITECTURE.md` 目标分层预建的包骨架，目前仅有 `__init__.py` / `.gitkeep` 占位，未被运行时代码引用。 |
 | `.env.example` | 环境变量模板：`ZHIPUAI_API_KEY`（必填）、`GLM_MODEL`、`GLM_IMAGE_MODEL`、`GLM_BASE_URL`。 |
 
 ## 扩展点
