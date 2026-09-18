@@ -257,127 +257,132 @@ function scrollToHeading(id: string) {
 
 <template>
   <div class="msg-row" :class="{ 'msg-row--user': isUser }">
-    <!-- 头像 -->
-    <div class="avatar" :class="{ 'avatar--user': isUser, 'avatar--streaming': message.streaming && !isUser }">
-      <img v-if="isUser && userAvatar" :src="userAvatar" alt="用户头像" />
-      <span v-else-if="isUser">S</span>
-      <img v-else-if="aiAvatar" :src="aiAvatar" alt="AI 头像" />
-      <svg v-else viewBox="0 0 24 24" width="18" height="18" fill="none">
-        <path d="M12 2L2 7l10 5 10-5-10-5z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
-        <path d="M2 17l10 5 10-5M2 12l10 5 10-5" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
-      </svg>
-      <span v-if="message.streaming && !isUser" class="avatar-ring"></span>
-    </div>
-
-    <!-- 气泡 -->
-    <div class="bubble" :class="{ 'bubble--user': isUser, 'bubble--error': message.error, 'bubble--streaming': message.streaming && !isUser }">
-      <!-- 生图工具执行中的临时提示 -->
-      <div v-if="!isUser && message.imageStatus" class="img-status">
-        <span class="img-status__spin"></span>{{ message.imageStatus }}
-      </div>
-      <!-- 多模态附件（文字区内只放文档/音频；角色立绘图片走气泡下方的独立图鉴区） -->
-      <div v-if="textAtts.length" class="bubble__atts">
-        <template v-for="(att, i) in textAtts" :key="att.url + i">
-          <a
-            v-if="att.type === 'image'"
-            class="att-image"
-            :href="att.url"
-            target="_blank"
-            rel="noopener"
-            :title="att.name || '查看原图'"
-          >
-            <img :src="att.url" :alt="att.name || '图片'" loading="lazy" />
-          </a>
-          <video
-            v-else-if="att.mime?.startsWith('video/')"
-            class="att-video"
-            controls
-            preload="metadata"
-            :src="att.url"
-          ></video>
-          <audio v-else-if="att.type === 'audio'" class="att-audio" controls preload="metadata" :src="att.url"></audio>
-          <a v-else class="att-file" :href="att.url" target="_blank" rel="noopener" :title="att.name">
-            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>
-            </svg>
-            <span>{{ att.name || '附件' }}</span>
-          </a>
-        </template>
-      </div>
-
-      <!-- 思考过程：正文开始前实时展开，开始后自动折叠，可手动点开 -->
-      <div v-if="!isUser && message.thinking" class="think-block">
-        <button class="think-head" @click="toggleThinking">
-          <span class="think-icon" :class="{ 'think-icon--active': isThinking }">
-            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round">
-              <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
-            </svg>
-          </span>
-          <span class="think-title">{{ isThinking ? '正在思考' : '已深度思考' }}</span>
-          <span v-if="isThinking" class="think-spinner"></span>
-          <svg class="think-chevron" :class="{ 'think-chevron--open': thinkingOpen }" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <polyline points="6 9 12 15 18 9"/>
+    <!-- 正文列：头像与气泡一行、立绘图鉴在其下方（全部参与文档流，撑开行高），目录仍悬浮在列右侧 -->
+    <div class="msg-body">
+      <div class="msg-line">
+        <!-- 头像 -->
+        <div class="avatar" :class="{ 'avatar--user': isUser, 'avatar--streaming': message.streaming && !isUser }">
+          <img v-if="isUser && userAvatar" :src="userAvatar" alt="用户头像" />
+          <span v-else-if="isUser">S</span>
+          <img v-else-if="aiAvatar" :src="aiAvatar" alt="AI 头像" />
+          <svg v-else viewBox="0 0 24 24" width="18" height="18" fill="none">
+            <path d="M12 2L2 7l10 5 10-5-10-5z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+            <path d="M2 17l10 5 10-5M2 12l10 5 10-5" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
           </svg>
-        </button>
-        <div v-show="thinkingOpen" class="think-body">
-          <span class="think-text">{{ message.thinking }}</span><span v-if="isThinking" class="think-cursor"></span>
+          <span v-if="message.streaming && !isUser" class="avatar-ring"></span>
+        </div>
+
+        <!-- 气泡 -->
+        <div class="bubble" :class="{ 'bubble--user': isUser, 'bubble--error': message.error, 'bubble--streaming': message.streaming && !isUser }">
+          <!-- 生图工具执行中的临时提示 -->
+          <div v-if="!isUser && message.imageStatus" class="img-status">
+            <span class="img-status__spin"></span>{{ message.imageStatus }}
+          </div>
+          <!-- 多模态附件（文字区内只放文档/音频；角色立绘图片走气泡下方的独立图鉴区） -->
+          <div v-if="textAtts.length" class="bubble__atts">
+            <template v-for="(att, i) in textAtts" :key="att.url + i">
+              <a
+                v-if="att.type === 'image'"
+                class="att-image"
+                :href="att.url"
+                target="_blank"
+                rel="noopener"
+                :title="att.name || '查看原图'"
+              >
+                <img :src="att.url" :alt="att.name || '图片'" loading="lazy" />
+              </a>
+              <video
+                v-else-if="att.mime?.startsWith('video/')"
+                class="att-video"
+                controls
+                preload="metadata"
+                :src="att.url"
+              ></video>
+              <audio v-else-if="att.type === 'audio'" class="att-audio" controls preload="metadata" :src="att.url"></audio>
+              <a v-else class="att-file" :href="att.url" target="_blank" rel="noopener" :title="att.name">
+                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>
+                </svg>
+                <span>{{ att.name || '附件' }}</span>
+              </a>
+            </template>
+          </div>
+
+          <!-- 思考过程：正文开始前实时展开，开始后自动折叠，可手动点开 -->
+          <div v-if="!isUser && message.thinking" class="think-block">
+            <button class="think-head" @click="toggleThinking">
+              <span class="think-icon" :class="{ 'think-icon--active': isThinking }">
+                <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round">
+                  <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+                </svg>
+              </span>
+              <span class="think-title">{{ isThinking ? '正在思考' : '已深度思考' }}</span>
+              <span v-if="isThinking" class="think-spinner"></span>
+              <svg class="think-chevron" :class="{ 'think-chevron--open': thinkingOpen }" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="6 9 12 15 18 9"/>
+              </svg>
+            </button>
+            <div v-show="thinkingOpen" class="think-body">
+              <span class="think-text">{{ message.thinking }}</span><span v-if="isThinking" class="think-cursor"></span>
+            </div>
+          </div>
+
+          <!-- 首个 token（含思考）到达前的纯等待：三点动画 -->
+          <div v-if="!displayContent && message.streaming && !message.thinking" class="typing-dots">
+            <i></i><i></i><i></i>
+          </div>
+          <span v-else-if="message.error" class="error-tip">生成失败，请重试</span>
+
+          <!-- 角色设计模式优先：固定六段结构解析为炫酷角色档案卡（图文分离，立绘在气泡外图鉴区） -->
+          <template v-else-if="isCharacterDesign">
+            <CharacterShowcase :content="displayContent" />
+            <button type="button" class="raw-toggle" @click="showRaw = !showRaw">
+              {{ showRaw ? '收起原始文本' : '查看原始文本' }}
+            </button>
+            <div v-show="showRaw" class="bubble__content bubble__content--md" v-html="renderedHtml"></div>
+          </template>
+
+          <div
+            v-else-if="displayContent"
+            class="bubble__content"
+            :class="{ 'bubble__content--md': !isUser }"
+            v-html="renderedHtml"
+            @click="onContentClick"
+          ></div>
+
+          <div
+            v-else
+            class="bubble__content"
+            :class="{ 'bubble__content--md': !isUser }"
+            v-html="renderedHtml"
+            @click="onContentClick"
+          ></div>
+
+          <!-- 流式光标 -->
+          <span v-if="message.streaming && displayContent" class="stream-cursor"></span>
         </div>
       </div>
 
-      <!-- 首个 token（含思考）到达前的纯等待：三点动画 -->
-      <div v-if="!displayContent && message.streaming && !message.thinking" class="typing-dots">
-        <i></i><i></i><i></i>
-      </div>
-      <span v-else-if="message.error" class="error-tip">生成失败，请重试</span>
-
-      <!-- 角色设计模式优先：固定六段结构解析为炫酷角色档案卡（图文分离，立绘在气泡外图鉴区） -->
-      <template v-else-if="isCharacterDesign">
-        <CharacterShowcase :content="displayContent" />
-        <button type="button" class="raw-toggle" @click="showRaw = !showRaw">
-          {{ showRaw ? '收起原始文本' : '查看原始文本' }}
-        </button>
-        <div v-show="showRaw" class="bubble__content bubble__content--md" v-html="renderedHtml"></div>
-      </template>
-
-      <div
-        v-else-if="displayContent"
-        class="bubble__content"
-        :class="{ 'bubble__content--md': !isUser }"
-        v-html="renderedHtml"
-        @click="onContentClick"
-      ></div>
-
-      <div
-        v-else
-        class="bubble__content"
-        :class="{ 'bubble__content--md': !isUser }"
-        v-html="renderedHtml"
-        @click="onContentClick"
-      ></div>
-
-      <!-- 流式光标 -->
-      <span v-if="message.streaming && displayContent" class="stream-cursor"></span>
-    </div>
-
-    <!-- 角色设计模式：立绘图鉴（与文字档案分离的独立展示区） -->
-    <div v-if="!isUser && isCharacterDesign && imageAtts.length" class="portrait-zone">
-      <div class="portrait-zone__head">
-        <span class="portrait-zone__badge">◈ 角色立绘</span>
-        <span class="portrait-zone__line"></span>
-      </div>
-      <div class="portrait-zone__grid">
-        <a
-          v-for="(img, i) in imageAtts"
-          :key="img.url"
-          class="portrait-card"
-          :href="img.url"
-          target="_blank"
-          rel="noopener"
-        >
-          <img :src="img.url" :alt="img.name || `角色立绘 ${i + 1}`" loading="lazy" />
-          <span class="portrait-card__glow"></span>
-          <span class="portrait-card__label">立绘 {{ String(i + 1).padStart(2, '0') }}</span>
-        </a>
+      <!-- 角色设计模式：立绘图鉴（与文字档案分离的独立展示区） -->
+      <div v-if="!isUser && isCharacterDesign && imageAtts.length" class="portrait-zone">
+        <div class="portrait-zone__head">
+          <span class="portrait-zone__badge">◈ 角色立绘</span>
+          <span class="portrait-zone__line"></span>
+        </div>
+        <div class="portrait-zone__grid">
+          <a
+            v-for="(img, i) in imageAtts"
+            :key="img.url"
+            class="portrait-card"
+            :href="img.url"
+            target="_blank"
+            rel="noopener"
+          >
+            <img :src="img.url" :alt="img.name || `角色立绘 ${i + 1}`" loading="lazy" />
+            <span class="portrait-card__glow"></span>
+            <span class="portrait-card__label">立绘 {{ String(i + 1).padStart(2, '0') }}</span>
+          </a>
+        </div>
       </div>
     </div>
 
@@ -406,6 +411,24 @@ function scrollToHeading(id: string) {
 }
 
 .msg-row--user {
+  flex-direction: row-reverse;
+}
+
+/* 正文列：头像+气泡一行，立绘图鉴列在其下方（正常文档流，撑开行高），目录悬浮于列右侧 */
+.msg-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.msg-line {
+  display: flex;
+  gap: 12px;
+  min-width: 0;
+}
+
+.msg-row--user .msg-line {
   flex-direction: row-reverse;
 }
 
@@ -465,14 +488,10 @@ function scrollToHeading(id: string) {
   background: rgba(91, 91, 214, 0.12);
 }
 
-/* 角色立绘图鉴：浅色独立分区 */
+/* 角色立绘图鉴：浅色独立分区（正常文档流，位于气泡下方） */
 .portrait-zone {
-  position: absolute;
-  left: 46px;
-  right: 0;
-  top: 100%;
+  margin-left: 46px; /* 与气泡左缘对齐（34px 头像 + 12px 间距） */
   margin-top: 14px;
-  z-index: 1;
 }
 .portrait-zone__head {
   display: flex;
