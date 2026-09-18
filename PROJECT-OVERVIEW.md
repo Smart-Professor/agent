@@ -54,8 +54,9 @@
 
 ```
 agent/
+├── .env                      # ⚠️ 全项目唯一环境变量文件（含真实密钥，gitignored）
+├── .env.all                  # 备份模板（数据来源）
 ├── frontend/                 # 前端（npm）
-│   ├── .env                  # VITE_API_BASE → http://localhost:13000
 │   └── src/
 │       ├── api/r2.js         # R2 上传/下载/删除接口封装
 │       ├── views/            # 页面：Home（系统概览）、Storage（R2 文件管理）
@@ -65,14 +66,12 @@ agent/
 │
 ├── backend/
 │   ├── nestjs/               # 业务后端（npm）
-│   │   ├── .env              # PG / Redis / JWT / R2 配置（需填真实值）
 │   │   └── src/
 │   │       ├── entities/     # 数据表：users / projects / creation_tasks
 │   │       ├── config/       # TypeORM、Redis/Bull 连接配置
 │   │       └── r2/           # R2 模块：controller（3 个接口）+ service + module
 │   │
 │   └── python/               # AI Agent（venv + uvicorn）
-│       ├── .env              # Redis / 数据库 / OpenAI Key（需填真实值）
 │       ├── requirements.txt
 │       └── app/
 │           ├── main.py       # FastAPI 入口（/、/health，已开启 CORS）
@@ -81,11 +80,9 @@ agent/
 │           ├── agents/       # writer（已接 MiMo）/ reviewer / orchestrator（预留）
 │           └── models/       # 大模型网关与小米 MiMo 提供商适配
 │
-├── .env                      # 全项目环境变量参考汇总
 ├── .gitignore
 ├── deployment-guide.md       # 完整部署指南
-└── R2-INTEGRATION.md         # R2 全栈对接方案
-```
+└── R2-INTEGRATION.md         # R2 全栈对接方案```
 
 ---
 
@@ -153,12 +150,12 @@ cd frontend
 npm install
 npm run dev                   # http://localhost:15173
 
-# 2. 业务后端（先填好 backend/nestjs/.env）
+# 2. 业务后端（先填好根目录 .env）
 cd backend/nestjs
 npm install
 npm run start:dev             # http://localhost:13000
 
-# 3. AI Agent（先填好 backend/python/.env）
+# 3. AI Agent（读同一个根目录 .env）
 cd backend/python
 python -m venv .venv
 .venv\Scripts\activate        # Windows
@@ -175,9 +172,12 @@ rq worker creation_tasks --url "redis://:<密码>@<主机>:6379"
 
 ## 九、环境变量（启动前必填）
 
-- [backend/nestjs/.env](./backend/nestjs/.env)：`DB_*`（PostgreSQL）、`REDIS_*`、`JWT_SECRET`、`R2_*`（Account ID / Access Key ID / Secret / Bucket / Endpoint / Public URL）
-- [backend/python/.env](./backend/python/.env)：`REDIS_*`、`DB_*`、`MIMO_API_KEY`（小米 MiMo，[platform.xiaomimimo.com](https://platform.xiaomimimo.com/) 获取）、`MIMO_MODEL`
-- [frontend/.env](./frontend/.env)：`VITE_API_BASE`（后端地址）
-- 根目录 [.env](./.env) 是所有变量的参考汇总，不被程序直接读取
+全项目只有一个环境变量文件：根目录 [.env](./.env)（含真实密钥，gitignored），三个服务都从它读取：
+
+- `DB_*`（PostgreSQL；NestJS 读 `DB_USERNAME`/`DB_DATABASE`，Python 读 `DB_USER`/`DB_NAME`，值填成一样）
+- `REDIS_*`（NestJS / Python / mail-service 三方共用）、`JWT_SECRET`、`MAIL_*`
+- `R2_*`（Account ID / Access Key ID / Secret / Bucket / Endpoint / Public URL）
+- `MIMO_API_KEY`（小米 MiMo，[platform.xiaomimimo.com](https://platform.xiaomimimo.com/) 获取）、`MIMO_MODEL`、`GMLMODEL_API_KEY`（智谱 GLM 备用模型）
+- 根目录 [.env.all](./.env.all) 是备份模板（数据来源）；`.env` 中不要放 `PORT` / `HOST` / `PYTHON_ENV`（端口是代码里的硬约定）
 
 R2 密钥在 Cloudflare 控制台 → R2 → Manage R2 API Tokens 创建；endpoint 固定格式为 `https://<账户ID>.r2.cloudflarestorage.com`。

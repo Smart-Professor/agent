@@ -17,7 +17,9 @@ async function bootstrap() {
     }),
   );
 
-  const port = process.env.PORT ?? 3000;
+  // 端口是跨服务硬约定：Vite 代理（frontend/vite.config.ts）与 Python 的 IMAGE_TOOL_URL
+  // 都写死了 13000；根 .env 不放 PORT（Python 的 PORT 是 18000，同名易混），故在此写死
+  const port = 13000;
   await app.listen(port);
   console.log(`NestJS application is running on: http://localhost:${port}`);
 }

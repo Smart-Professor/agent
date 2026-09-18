@@ -1,3 +1,4 @@
+import { resolve } from 'path';
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { BullModule } from '@nestjs/bull';
@@ -12,7 +13,12 @@ import { MAIL_QUEUE } from './contracts/mail-job.contract';
  */
 @Module({
   imports: [
-    ConfigModule.forRoot({ isGlobal: true }),
+    // 全项目唯一的 .env 在仓库根目录；本服务需从 backend/mail-service 目录启动，
+    // cwd 即本目录，据此向上定位根 .env
+    ConfigModule.forRoot({
+      isGlobal: true,
+      envFilePath: resolve(process.cwd(), '../../.env'),
+    }),
     BullModule.forRootAsync({
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({

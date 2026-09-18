@@ -1,3 +1,4 @@
+import { resolve } from 'path';
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
@@ -15,7 +16,12 @@ import { getBullConfig } from './config/redis.config';
 
 @Module({
   imports: [
-    ConfigModule.forRoot({ isGlobal: true }),
+    // 全项目唯一的 .env 在仓库根目录；本服务需从 backend/nestjs 目录启动（npm run start:dev），
+    // cwd 即本目录，据此向上定位根 .env
+    ConfigModule.forRoot({
+      isGlobal: true,
+      envFilePath: resolve(process.cwd(), '../../.env'),
+    }),
     TypeOrmModule.forRootAsync({
       inject: [ConfigService],
       useFactory: getDatabaseConfig,

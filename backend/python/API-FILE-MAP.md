@@ -25,7 +25,7 @@
 
 | 顺序 | 文件 | 在链路中的作用 |
 |---|---|---|
-| 0 | [.env](file:///c:/Users/11720/Desktop/团队技术部/agent/backend/python/.env) | 环境变量来源（Key、Base URL、模型名、端口） |
+| 0 | 根目录 [.env](file:///c:/Users/11720/Desktop/团队技术部/agent/.env) | 全项目唯一环境变量来源（Key、Base URL、模型名；端口为 config.py 默认值，不在 .env） |
 | 1 | [app/__init__.py](file:///c:/Users/11720/Desktop/团队技术部/agent/backend/python/app/__init__.py) | 顶层包标识，使 `app.xxx` 可被导入 |
 | 2 | [app/main.py](file:///c:/Users/11720/Desktop/团队技术部/agent/backend/python/app/main.py) | FastAPI 应用、CORS、4 个路由的注册处 |
 | 3 | [app/core/__init__.py](file:///c:/Users/11720/Desktop/团队技术部/agent/backend/python/app/core/__init__.py) | core 包标识 |
@@ -51,10 +51,10 @@ app/main.py  ::  root()                         [L33-L36]
 app/core/config.py  ::  settings 单例           [L33 字段 / L49 实例]
    │  pydantic-settings 在进程启动时已读入
    ▼
-.env  ::  MIMO_MODEL=mimo-v2.5-pro              [L28]
+根目录 .env  ::  MIMO_MODEL=mimo-v2.5           [L76]
    │
    ▼
-返回 {"status":"ok","service":"ai-creator-agent","model":"mimo-v2.5-pro"}
+返回 {"status":"ok","service":"ai-creator-agent","model":"mimo-v2.5"}
 ```
 
 ### 涉及文件清单
@@ -63,7 +63,7 @@ app/core/config.py  ::  settings 单例           [L33 字段 / L49 实例]
 |---|---|
 | [app/main.py](file:///c:/Users/11720/Desktop/团队技术部/agent/backend/python/app/main.py#L33-L36) | `root()` 函数 |
 | [app/core/config.py](file:///c:/Users/11720/Desktop/团队技术部/agent/backend/python/app/core/config.py#L33) | `settings.MIMO_MODEL` |
-| [.env](file:///c:/Users/11720/Desktop/团队技术部/agent/backend/python/.env#L28) | `MIMO_MODEL` 的实际值 |
+| [.env](file:///c:/Users/11720/Desktop/团队技术部/agent/.env#L76) | `MIMO_MODEL` 的实际值 |
 
 **不经过**：schemas、agents、models/gateway、providers。
 
@@ -102,7 +102,7 @@ app/core/config.py  ::  settings                [L31 MIMO_API_KEY 字段]
 | [app/main.py](file:///c:/Users/11720/Desktop/团队技术部/agent/backend/python/app/main.py#L39-L42) | `health()` 函数 |
 | [app/models/gateway.py](file:///c:/Users/11720/Desktop/团队技术部/agent/backend/python/app/models/gateway.py#L23-L26) | `is_configured()` 静态方法 |
 | [app/core/config.py](file:///c:/Users/11720/Desktop/团队技术部/agent/backend/python/app/core/config.py#L31) | `settings.MIMO_API_KEY` |
-| [.env](file:///c:/Users/11720/Desktop/团队技术部/agent/backend/python/.env#L25) | `MIMO_API_KEY` 的实际值 |
+| [.env](file:///c:/Users/11720/Desktop/团队技术部/agent/.env#L73) | `MIMO_API_KEY` 的实际值 |
 
 **注意**：只"读取配置判断"，**不创建客户端、不联网**，所以 Key 填错这个接口也返回 healthy/true。
 
@@ -170,7 +170,7 @@ providers(SDK) → gateway 取 content [L59] → writer → main.py
    └─ 成功：app/schemas/Data_type.py :: GenerateResponse     [L17-L21]
               pydantic 序列化 → JSON 响应
    ▼
-{"model":"mimo-v2.5-pro","content":"……完整正文……"}
+{"model":"mimo-v2.5","content":"……完整正文……"}
 ```
 
 ### 涉及文件清单（共 7 个项目文件 + 1 个配置）
@@ -183,7 +183,7 @@ providers(SDK) → gateway 取 content [L59] → writer → main.py
 | 4 | [app/models/gateway.py](file:///c:/Users/11720/Desktop/团队技术部/agent/backend/python/app/models/gateway.py#L14-L59) | 消息组装、配置检查、**真实请求 L50**、取正文 |
 | 5 | [app/models/providers.py](file:///c:/Users/11720/Desktop/团队技术部/agent/backend/python/app/models/providers.py#L21-L36) | 创建指向 MiMo 的 OpenAI 异步客户端 |
 | 6 | [app/core/config.py](file:///c:/Users/11720/Desktop/团队技术部/agent/backend/python/app/core/config.py#L31-L33) | 提供 Key / Base URL / Model |
-| 7 | [.env](file:///c:/Users/11720/Desktop/团队技术部/agent/backend/python/.env#L25-L28) | 三项 MiMo 配置的真实值 |
+| 7 | [.env](file:///c:/Users/11720/Desktop/团队技术部/agent/.env#L73-L76) | 三项 MiMo 配置的真实值 |
 | — | 包标识文件 | app / agents / models / schemas 的 `__init__.py`（导入时经过） |
 | — | 第三方 | `openai`、`httpx`（位于 `.venv`）→ 小米 MiMo 服务器 |
 
@@ -249,7 +249,7 @@ uvicorn 每次 yield 立即 flush 到 TCP → 浏览器实时收到
 | 4 | [app/models/gateway.py](file:///c:/Users/11720/Desktop/团队技术部/agent/backend/python/app/models/gateway.py#L61-L91) | **真实流式请求 L74**、空帧/思考内容过滤、逐块 yield |
 | 5 | [app/models/providers.py](file:///c:/Users/11720/Desktop/团队技术部/agent/backend/python/app/models/providers.py#L34-L36) | 同一个 AsyncOpenAI MiMo 客户端 |
 | 6 | [app/core/config.py](file:///c:/Users/11720/Desktop/团队技术部/agent/backend/python/app/core/config.py#L31-L33) | Key / Base URL / Model |
-| 7 | [.env](file:///c:/Users/11720/Desktop/团队技术部/agent/backend/python/.env#L25-L28) | 配置真实值 |
+| 7 | [.env](file:///c:/Users/11720/Desktop/团队技术部/agent/.env#L73-L76) | 配置真实值 |
 | — | 第三方/外部 | `openai`、`httpx`（.venv）→ 小米 MiMo 服务器 |
 
 ---

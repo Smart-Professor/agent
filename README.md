@@ -52,6 +52,8 @@
 
 ```
 agent/
+├── .env                       # ⚠️ 全项目唯一环境变量文件（含真实密钥，需自行创建，模板见下文）
+├── .env.all                   # 备份模板（数据来源，不提交 git）
 ├── frontend/                  # Vue 3 前端
 │   └── src/
 │       ├── api/               # 接口封装（http / chat / r2 / agent）
@@ -62,7 +64,6 @@ agent/
 │
 ├── backend/
 │   ├── nestjs/                # 业务后端
-│   │   ├── .env               # ← 需自行创建（模板见下文）
 │   │   └── src/
 │   │       ├── auth/          # 注册 / 登录 / JWT 策略
 │   │       ├── chat/          # 会话、消息、SSE 转发、生图回调接口
@@ -72,7 +73,6 @@ agent/
 │   │           └── ...        # 实体：users / projects / creation_tasks / chats / drive_files
 │   │
 │   ├── python/                # AI Agent 服务
-│   │   ├── .env               # ← 需自行创建（模板见下文）
 │   │   ├── requirements.txt
 │   │   └── app/
 │   │       ├── main.py        # FastAPI 入口：/agent/generate、/agent/stream、/health
@@ -81,7 +81,6 @@ agent/
 │   │       └── core/ services/ schemas/   # 配置、Redis、RQ 队列骨架
 │   │
 │   ├── mail-service/          # 邮件 Worker（Bull 消费者，无 HTTP 端口）
-│   │   ├── .env               # ← 需自行创建（模板见下文）
 │   │   └── src/processors/    # 消费 mail 队列 → nodemailer SMTP 发信
 │   │
 │   └── agentt-py/             # 独立实验模块：LangGraph 多 Agent 主管模式（详见其内 README）
@@ -133,96 +132,73 @@ CREATE DATABASE ai_creator ENCODING 'UTF8';
 
 > 数据表**无需手动创建**：NestJS 首次启动时 `DB_SYNC=true` 会自动建表。
 
-### 第 3 步：配置环境变量（3 个 .env 文件）
+### 第 3 步：配置环境变量（仅 1 个文件）
 
-项目不提交 .env，需要手动创建以下 3 个文件。
-
-**① `backend/nestjs/.env`** —— 业务后端配置：
+项目不提交 .env。在**仓库根目录**创建唯一的 `.env`（模板如下）——所有服务（NestJS / Python Agent / mail-service）都从这一个文件读取，改配置只需改这一处：
 
 ```env
-# 服务
-NODE_ENV=development
-PORT=13000
+# ---------- 服务间地址 ----------
+PYTHON_AGENT_URL=http://localhost:18000   # NestJS → Python Agent（保持默认）
+IMAGE_TOOL_URL=http://localhost:13000/chat/internal/image   # Python → NestJS 生图回调（保持默认）
+INTERNAL_TOKEN=dev-internal-token         # 服务间共享密钥（两边读同一份，天然一致）
 
-# PostgreSQL
+# ---------- PostgreSQL ----------
+# ⚠️ 命名差异（值填成一样即可）：NestJS 读 DB_USERNAME/DB_DATABASE，Python 读 DB_USER/DB_NAME
 DB_HOST=127.0.0.1
 DB_PORT=5432
-DB_USERNAME=postgres
 DB_PASSWORD=你的数据库密码
+DB_USERNAME=postgres
 DB_DATABASE=ai_creator
-DB_SYNC=true
-DB_LOGGING=false
+DB_USER=postgres
+DB_NAME=ai_creator
 
-# Redis
+# ---------- Redis（NestJS / Python / mail-service 三方共用） ----------
 REDIS_HOST=127.0.0.1
 REDIS_PORT=6379
 REDIS_PASSWORD=
 
-# JWT（换成任意 32 位以上随机字符串）
+# ---------- JWT（NestJS；换成任意 32 位以上随机字符串） ----------
 JWT_SECRET=change_me_to_a_random_secret_key_at_least_32_chars
 JWT_EXPIRES_IN=7d
 
-# Python Agent 地址（保持默认即可）
-PYTHON_AGENT_URL=http://localhost:18000
-# Python ↔ NestJS 内部调用共享密钥（须与 backend/python/.env 中一致）
-INTERNAL_TOKEN=dev-internal-token
-
-# Cloudflare R2（网盘 / 生图落盘用；暂时不用可留空，服务仍能启动）
-R2_ENDPOINT=https://你的账户ID.r2.cloudflarestorage.com
-R2_BUCKET_NAME=ai-creator-works
-R2_ACCESS_KEY_ID=
-R2_SECRET_ACCESS_KEY=
-R2_PUBLIC_URL=
-
-# AI 生图服务（OpenAI Images 兼容接口；不用生图功能可不填）
-IMAGE_GEN_URL=
-IMAGE_GEN_API_KEY=
-IMAGE_GEN_MODEL=gpt-image-1
-IMAGE_MODIFY_URL=
-IMAGE_MODIFY_API_KEY=
-```
-
-**② `backend/python/.env`** —— AI Agent 配置：
-
-```env
-PYTHON_ENV=development
-HOST=0.0.0.0
-PORT=18000
-
-# Redis（任务队列用）
-REDIS_HOST=127.0.0.1
-REDIS_PORT=6379
-REDIS_PASSWORD=
-
-# 小米 MiMo 大模型（OpenAI 兼容协议）
-# API Key 在 https://platform.xiaomimimo.com 注册获取
-MIMO_API_KEY=sk-你的key
-MIMO_BASE_URL=https://api.xiaomimimo.com/v1
-MIMO_MODEL=mimo-v2.5
-
-# 生图回调（与 NestJS 联动，保持默认即可）
-IMAGE_TOOL_URL=http://localhost:13000/chat/internal/image
-# 必须与 backend/nestjs/.env 中的 INTERNAL_TOKEN 完全一致
-INTERNAL_TOKEN=dev-internal-token
-```
-
-**③ `backend/mail-service/.env`** —— 邮件 Worker 配置：
-
-```env
-# Redis（与 NestJS 指向同一个实例，Bull 队列靠它传递）
-REDIS_HOST=127.0.0.1
-REDIS_PORT=6379
-REDIS_PASSWORD=
-
-# SMTP（默认 163 邮箱；用其他服务商改 host 即可）
+# ---------- 163 邮箱（NestJS 与 mail-service 共用；用其他服务商改 host 即可） ----------
 MAIL_HOST=smtp.163.com
 MAIL_PORT=465
 MAIL_SECURE=true
 MAIL_USER=你的完整邮箱@163.com
 MAIL_PASS=SMTP授权码
 MAIL_FROM_NAME=Agent
+
+# ---------- Cloudflare R2（NestJS；暂时不用可留空，服务仍能启动） ----------
+R2_ACCOUNT_ID=
+R2_ACCESS_KEY_ID=
+R2_SECRET_ACCESS_KEY=
+R2_BUCKET_NAME=ai-creator-works
+R2_ENDPOINT=https://你的账户ID.r2.cloudflarestorage.com
+R2_PUBLIC_URL=
+
+# ---------- AI 生图 / 改图服务（NestJS，OpenAI Images 兼容接口；不用生图可不填） ----------
+IMAGE_GEN_URL=
+IMAGE_MODIFY_URL=
+IMAGE_MODIFY=gpt-image-2.5
+IMAGE_MODIFY_API_KEY=
+
+# ---------- 小米 MiMo 大模型（Python，主对话模型，OpenAI 兼容协议） ----------
+# API Key 在 https://platform.xiaomimimo.com 注册获取
+MIMO_API_KEY=sk-你的key
+MIMO_BASE_URL=https://api.xiaomimimo.com/v1
+MIMO_MODEL=mimo-v2.5
+
+# ---------- 智谱 GLM（Python，备用模型，前端下拉可选） ----------
+# API Key 在 https://open.bigmodel.cn 获取
+GMLMODEL_API_KEY=
+GMLMODEL_MODEL=GLM-5.3-flash
 ```
 
+> ⚠️ **不要把 `PORT` / `HOST` / `PYTHON_ENV` 写进 .env**：端口是跨服务硬约定（NestJS 13000 写死在 `backend/nestjs/src/main.ts`，Python 18000 是 `backend/python/app/core/config.py` 的默认值），`frontend/vite.config.ts` 的代理与上面的回调地址也都写死了端口。写进 .env 会让 NestJS 和 Python 抢同一个同名变量。
+>
+> **读取方式**：NestJS 与 mail-service 从各自目录启动（npm 脚本），按「cwd 上两级」找到根 .env；Python 按代码位置定位，从任何目录启动均可。
+>
 > **163 授权码获取**：网易邮箱网页版 → 设置 → POP3/SMTP/IMAP → 开启服务并生成授权码（不是邮箱登录密码）。
 >
 > **R2 密钥获取**：Cloudflare 控制台 → R2 → Manage R2 API Tokens 创建，endpoint 固定格式 `https://<账户ID>.r2.cloudflarestorage.com`，详见 [R2-INTEGRATION.md](./R2-INTEGRATION.md)。
@@ -268,7 +244,7 @@ npm install
 npm run dev
 ```
 
-> ⚠️ 端口是约定好的：NestJS 必须 13000（Vite 代理指向它），Python 必须 18000（Vite 与 NestJS 都指向它），前端 15173。改端口需同步修改 `frontend/vite.config.ts` 与两边的 `.env`。
+> ⚠️ 端口是约定好的：NestJS 必须 13000（Vite 代理指向它），Python 必须 18000（Vite 与 NestJS 都指向它），前端 15173。改端口需同步修改 `frontend/vite.config.ts`、`backend/nestjs/src/main.ts`（13000 写死处）与 `backend/python/app/core/config.py`（18000 默认值），`.env` 里不放端口。
 
 ### 第 5 步：验证
 
@@ -309,7 +285,7 @@ pip install -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple
 <details>
 <summary><b>对话报 503「未配置 MIMO_API_KEY」</b></summary>
 
-`backend/python/.env` 没填或没填对。到 https://platform.xiaomimimo.com 注册获取 Key，填好后重启终端 1。
+根目录 `.env` 中 `MIMO_API_KEY` 没填或没填对。到 https://platform.xiaomimimo.com 注册获取 Key，填好后重启终端 1。
 </details>
 
 <details>
@@ -335,7 +311,7 @@ lsof -i :13000
 <details>
 <summary><b>AI 不生成图片 / 报「未配置图片服务」</b></summary>
 
-生图需要 OpenAI Images 兼容服务：在 `backend/nestjs/.env` 中填写 `IMAGE_GEN_URL`、`IMAGE_GEN_API_KEY`（改图另需 `IMAGE_MODIFY_URL`）。只做文字对话可不配置。
+生图需要 OpenAI Images 兼容服务：在根目录 `.env` 中填写 `IMAGE_GEN_URL`、`IMAGE_MODIFY_API_KEY`（改图另需 `IMAGE_MODIFY_URL`）。只做文字对话可不配置。
 </details>
 
 ---

@@ -161,6 +161,6 @@ if __name__ == "__main__":
     uvicorn.run(
         "app.main:app",        # 应用的导入路径（字符串形式支持热重载）
         host=settings.HOST,    # 监听地址，.env 中为 0.0.0.0（允许外部访问）
-        port=settings.PORT,    # 监听端口，.env 中为 8000
+        port=settings.PORT,    # 监听端口，config.py 默认 18000（根 .env 不放 PORT）
         reload=True,           # 代码变更后自动重启，仅适合开发环境
     )

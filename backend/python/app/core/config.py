@@ -4,6 +4,7 @@
 其他模块统一 `from app.core.config import settings` 使用单例。
 """
 from pydantic_settings import BaseSettings  # 配置基类：自动从环境变量/.env 加载字段
+from pathlib import Path  # 用于定位仓库根目录的 .env
 from typing import Optional  # 可选类型标记
 
 
@@ -13,7 +14,7 @@ class Settings(BaseSettings):
     # ---- 服务运行配置 ----
     PYTHON_ENV: str = "development"  # 运行环境：development / production
     HOST: str = "0.0.0.0"            # 监听地址，0.0.0.0 表示允许外部访问
-    PORT: int = 8000                 # 监听端口
+    PORT: int = 18000                # 监听端口（跨服务硬约定：Vite 代理与 NestJS 的 PYTHON_AGENT_URL 都写死 18000）
 
     # ---- Redis（队列 + 发布订阅）----
     REDIS_HOST: str = "localhost"    # Redis 主机
@@ -52,8 +53,10 @@ class Settings(BaseSettings):
         return f"redis://{self.REDIS_HOST}:{self.REDIS_PORT}"
 
     class Config:
-        env_file = ".env"  # 指定从当前工作目录下的 .env 读取变量
-        extra = "ignore"   # 忽略 .env 中未定义的多余变量，避免 ValidationError
+        # 全项目唯一的 .env 在仓库根目录（本文件在 backend/python/app/core/ 下，向上 4 级即根），
+        # 用 __file__ 定位，与启动时的工作目录无关
+        env_file = Path(__file__).resolve().parents[4] / ".env"
+        extra = "ignore"   # 忽略 .env 中未定义的多余变量（NestJS / mail-service 的变量也在此文件），避免 ValidationError
 
 
 # 全局唯一配置实例，模块导入时即完成加载

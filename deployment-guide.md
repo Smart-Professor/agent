@@ -327,7 +327,7 @@ npm install -D @types/passport-jwt @types/bull
 
 ### 5.2 环境变量配置
 
-创建 `.env` 文件（在 NestJS 目录下）：
+创建 `.env` 文件（在**项目根目录**——全项目唯一一份，NestJS / Python / mail-service 都从这里读取；以下是 NestJS 需要的变量）：
 
 ```env
 # ==========================================
@@ -621,7 +621,7 @@ pip install -r requirements.txt
 
 ### 6.3 环境变量配置
 
-创建 `.env` 文件（在 Python 目录下）：
+Python 需要的变量同样写入项目根目录的 `.env`（端口不写在 .env 里，Python 端口 18000 是 `app/core/config.py` 的默认值）：
 
 ```env
 # ==========================================
@@ -721,7 +721,8 @@ class Settings(BaseSettings):
         return f"redis://{self.REDIS_HOST}:{self.REDIS_PORT}"
 
     class Config:
-        env_file = ".env"
+        # 全项目唯一的 .env 在仓库根目录；用 __file__ 定位，与启动时的工作目录无关
+        env_file = Path(__file__).resolve().parents[4] / ".env"
 
 settings = Settings()
 ```
@@ -886,12 +887,12 @@ rq worker creation_tasks --url "redis://:your_redis_password@your_redis_host:637
 
 ## 七、环境变量汇总
 
-在项目根目录创建一个总的 `.env` 作为参考（实际各服务用自己的 .env）：
+全项目只有一个 `.env`，就在项目根目录（NestJS / Python Agent / mail-service 都直接读取这一份）：
 
 ```env
 # ==========================================
 # 项目环境变量汇总
-# 各服务目录下有各自的 .env 文件，这里仅做参考
+# 所有服务共用这一份文件（变量清单见 README「第 3 步」模板）
 # ==========================================
 
 # PostgreSQL
@@ -1009,7 +1010,7 @@ netstat -ano | findstr :13000   # Windows
 
 ### NestJS 数据库连接报错
 
-- 确认 `.env` 中的 `DB_HOST`、`DB_USERNAME`、`DB_PASSWORD` 正确
+- 确认根目录 `.env` 中的 `DB_HOST`、`DB_USERNAME`、`DB_PASSWORD` 正确
 - 确认数据库 `ai_creator` 已创建
 - 首次启动设置 `DB_SYNC=true` 让 TypeORM 自动建表
 
