@@ -1,18 +1,18 @@
 """LangGraph 共享状态：所有 Agent 通过它传递素材与产物。"""
 
-import operator
-from typing import Annotated, TypedDict
+import operator  # 导入 operator，用 operator.add 作为列表字段的追加合并策略
+from typing import Annotated, TypedDict  # 导入类型工具：Annotated 给字段附加合并策略，TypedDict 定义字典结构
 
-from langchain_core.messages import AnyMessage
-from langgraph.graph import add_messages
+from langchain_core.messages import AnyMessage  # 导入通用消息类型（Human/AI/System 消息的联合）
+from langgraph.graph import add_messages  # 导入 LangGraph 的消息合并策略（按 id 去重追加，不覆盖历史）
 
 
-class AgentState(TypedDict):
-    messages: Annotated[list[AnyMessage], add_messages]  # 完整对话历史
+class AgentState(TypedDict):  # 共享状态：每个节点读它、返回增量，由 LangGraph 按字段策略合并
+    messages: Annotated[list[AnyMessage], add_messages]  # 完整对话历史（add_messages 合并，避免覆盖）
     user_input: str  # 用户本轮输入
     instruction: str  # 主管给当前 worker 的指令
     next_agent: str  # 主管路由结果：worker 名或 FINISH
     artifacts: dict[str, str]  # 产物：story/characters/scenes/storyboard/interaction/world_state
-    reports: Annotated[list[str], operator.add]  # worker 给主管的简报
-    images: Annotated[list[dict], operator.add]  # 生图记录 {agent, prompt, url, error?}
+    reports: Annotated[list[str], operator.add]  # worker 给主管的简报（operator.add 追加合并）
+    images: Annotated[list[dict], operator.add]  # 生图记录 {agent, prompt, url, error?}（追加合并）
     steps: int  # 调度轮数（防死循环）
